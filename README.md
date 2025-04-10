@@ -1,1 +1,1 @@
-This is a Movie Search app using Next JS.
+This is a Classic Todo List using Next JS.
