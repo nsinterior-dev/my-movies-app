@@ -1,5 +1,10 @@
 import React from "react";
 
-export const Home = () => {
-  return <div>Home</div>;
+const Home = () => {
+  return <div>
+    <button>click me</button>
+    Home
+    </div>;
 };
+
+export default Home;
