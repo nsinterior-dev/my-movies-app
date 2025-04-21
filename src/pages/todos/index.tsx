@@ -1,36 +1,48 @@
-import React, { useActionState, useState } from "react";
+import React, { useEffect, useState } from 'react';
+import { listTodos, createTodo, deleteTodo, Todo } from '@/api'; // Import your service functions
 
-type Todo = { id: string; title: string };
-
-async function handleTodos(prev: Todo[], formData: FormData): Promise<Todo[]> {
-  const intent = formData.get("intent");
-
-  console.log({intent})
-  
-  if (intent === "add") {
-    const title = formData.get("title") as string;
-    if (!title) return prev;
-    return [...prev, { id: crypto.randomUUID(), title }];
-  }
-
-  if (intent === "remove") {
-    const id = formData.get("id") as string;
-    return prev.filter((todo) => todo.id !== id);
-  }
-
-  return prev;
-}
+// type Todo = { id: string; title: string };
 
 const Todos = () => {
-  const [todos, formAction] = useActionState(handleTodos, []);
-  const [input, setInput] = useState("");
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [input, setInput] = useState('');
 
-  const handleRemove = (e: React.FormEvent<HTMLFormElement>, id: string) => {
+  // Fetch todos on component mount
+  useEffect(() => {
+    const fetchTodos = async () => {
+      try {
+        const fetchedTodos = await listTodos();
+        setTodos(fetchedTodos);
+      } catch (error) {
+        console.error('Failed to fetch todos:', error);
+      }
+    };
+
+    fetchTodos();
+  }, []);
+
+  // Handle adding a new todo
+  const handleAdd = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData();
-    formData.append("id", id);
-    formData.append("intent", "remove");
-    formAction(formData);
+    if (!input.trim()) return;
+
+    try {
+      await createTodo({ title: input });
+      setTodos((prev) => [...prev, { _id: crypto.randomUUID(), title: input }]); // Optimistic update
+      setInput('');
+    } catch (error) {
+      console.error('Failed to add todo:', error);
+    }
+  };
+
+  // Handle removing a todo
+  const handleRemove = async (_id: string) => {
+    try {
+      await deleteTodo({ _id });
+      setTodos((prev) => prev.filter((todo) => todo._id !== _id)); // Optimistic update
+    } catch (error) {
+      console.error('Failed to remove todo:', error);
+    }
   };
 
   return (
@@ -38,25 +50,28 @@ const Todos = () => {
       <h1>Todos</h1>
       <ul>
         {todos.map((todo) => (
-          <li key={todo.id}>
-          
-            <form onSubmit={(e) => handleRemove(e, todo.id)} method="post">
-              {todo.title}              
-              <input type="hidden" name="id" value={todo.id} />
-              <button type="submit" name="intent" value="remove">Remove</button>
+          <li key={todo._id}>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleRemove(todo._id);
+              }}
+            >
+              {todo.title}
+              <button type='submit'>Remove</button>
             </form>
           </li>
         ))}
       </ul>
 
-      <form action={formAction} method="post" onSubmit={() => setInput("")}>
+      <form onSubmit={handleAdd}>
         <input
-          type="text"
-          name="title"
+          type='text'
+          name='title'
           value={input}
           onChange={(e) => setInput(e.target.value)}
         />
-        <button type="submit" name="intent" value="add">Add</button>
+        <button type='submit'>Add</button>
       </form>
     </div>
   );
