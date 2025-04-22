@@ -1,10 +1,28 @@
-import React, { useEffect, useState } from 'react';
-import { listTodos, createTodo, deleteTodo, Todo } from '@/api'; // Import your service functions
+import React, { useEffect, useReducer, useState } from 'react';
+import { listTodos, createTodo, deleteTodo, Todo } from '@/server'; // Import your service functions
 
-// type Todo = { id: string; title: string };
+import { Todos as TodoComp } from '@/features/todos/presentation';
+
+type Action =
+  | { type: 'SET_TODOS'; payload: Todo[] }
+  | { type: 'ADD_TODO'; payload: Todo }
+  | { type: 'REMOVE_TODO'; payload: string };
+
+function reducer(state: Todo[], action: Action): Todo[] {
+  switch (action.type) {
+    case 'SET_TODOS':
+      return action.payload;
+    case 'ADD_TODO':
+      return [...state, action.payload];
+    case 'REMOVE_TODO':
+      return state.filter((todo) => todo._id !== action.payload);
+    default:
+      return state;
+  }
+}
 
 const Todos = () => {
-  const [todos, setTodos] = useState<Todo[]>([]);
+  const [todos, dispatch] = useReducer(reducer, []);
   const [input, setInput] = useState('');
 
   // Fetch todos on component mount
@@ -12,7 +30,7 @@ const Todos = () => {
     const fetchTodos = async () => {
       try {
         const fetchedTodos = await listTodos();
-        setTodos(fetchedTodos);
+        dispatch({ type: 'SET_TODOS', payload: fetchedTodos });
       } catch (error) {
         console.error('Failed to fetch todos:', error);
       }
@@ -27,8 +45,9 @@ const Todos = () => {
     if (!input.trim()) return;
 
     try {
+      const newTodo = { _id: crypto.randomUUID(), title: input };
       await createTodo({ title: input });
-      setTodos((prev) => [...prev, { _id: crypto.randomUUID(), title: input }]); // Optimistic update
+      dispatch({ type: 'ADD_TODO', payload: newTodo }); // Optimistic update
       setInput('');
     } catch (error) {
       console.error('Failed to add todo:', error);
@@ -39,7 +58,7 @@ const Todos = () => {
   const handleRemove = async (_id: string) => {
     try {
       await deleteTodo({ _id });
-      setTodos((prev) => prev.filter((todo) => todo._id !== _id)); // Optimistic update
+      dispatch({ type: 'REMOVE_TODO', payload: _id }); // Optimistic update
     } catch (error) {
       console.error('Failed to remove todo:', error);
     }
@@ -47,33 +66,35 @@ const Todos = () => {
 
   return (
     <div>
-      <h1>Todos</h1>
-      <ul>
-        {todos.map((todo) => (
-          <li key={todo._id}>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleRemove(todo._id);
-              }}
-            >
-              {todo.title}
-              <button type='submit'>Remove</button>
-            </form>
-          </li>
-        ))}
-      </ul>
 
-      <form onSubmit={handleAdd}>
-        <input
-          type='text'
-          name='title'
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-        />
-        <button type='submit'>Add</button>
-      </form>
-    </div>
+    <TodoComp />
+    <h1>Todos</h1>
+    <ul>
+      {todos.map((todo) => (
+        <li key={todo._id}>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleRemove(todo._id);
+            }}
+          >
+            {todo.title}
+            <button type='submit'>Remove</button>
+          </form>
+        </li>
+      ))}
+    </ul>
+
+    <form onSubmit={handleAdd}>
+      <input
+        type='text'
+        name='title'
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+      />
+      <button type='submit'>Add</button>
+    </form>
+  </div>
   );
 };
 

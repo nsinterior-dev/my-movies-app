@@ -1,3 +1,3 @@
 
-import { apiRequestHandler } from "@/api/data";
+import { apiRequestHandler } from "@/server/data";
 export default apiRequestHandler("todos");
